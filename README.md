@@ -23,4 +23,4 @@ npm run dev
 
 ### API (`api/`)
 
-Requires Docker Desktop (Laravel Sail). Setup instructions land here once Phase 0 backend scaffolding is complete.
+Requires Docker Desktop (Laravel Sail). See [api/README.md](api/README.md) for setup.
