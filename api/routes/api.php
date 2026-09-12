@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\GameController;
 use App\Http\Controllers\PoolController;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
@@ -15,6 +16,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
 
     Route::get('pool', [PoolController::class, 'show']);
+    Route::get('weeks/{season}/{week}/games', [GameController::class, 'index'])
+        ->whereNumber(['season', 'week']);
 
     Route::middleware('commissioner')->group(function () {
         Route::patch('pool', [PoolController::class, 'update']);

@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'espn' => [
+        // Unofficial, undocumented endpoint — same data ESPN's own apps use,
+        // but no published schema/SLA. See EspnScoreboardClient.
+        'scoreboard_url' => env(
+            'ESPN_SCOREBOARD_URL',
+            'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
+        ),
+    ],
+
 ];
