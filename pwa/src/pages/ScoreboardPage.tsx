@@ -1,12 +1,7 @@
 import { useState } from 'react'
+import { WeekNav } from '../components/WeekNav'
 import { useGames, type Game } from '../hooks/useGames'
-
-function defaultSeasonYear(): number {
-  const now = new Date()
-  // The NFL season starting in September of year Y is labeled "Y" all the
-  // way through its Jan/Feb finish, matching ESPN's own season.year field.
-  return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
-}
+import { defaultSeasonYear } from '../lib/nflSeason'
 
 function statusLabel(game: Game): string {
   switch (game.status) {
@@ -54,25 +49,11 @@ export function ScoreboardPage() {
   const [week, setWeek] = useState(1)
   const { data: games, isLoading, isError } = useGames(season, week)
 
-  function goToWeek(delta: number) {
-    setWeek((current) => Math.min(22, Math.max(1, current + delta)))
-  }
-
   return (
     <div className="flex-1 px-4 py-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Scoreboard</h1>
-        <div className="flex items-center gap-3 text-sm">
-          <button onClick={() => goToWeek(-1)} disabled={week <= 1} className="disabled:opacity-30">
-            ←
-          </button>
-          <span>
-            {season} · Week {week}
-          </span>
-          <button onClick={() => goToWeek(1)} disabled={week >= 22} className="disabled:opacity-30">
-            →
-          </button>
-        </div>
+        <WeekNav season={season} week={week} onChangeWeek={setWeek} />
       </div>
 
       {isLoading && <p className="text-sm text-slate-500">Loading…</p>}

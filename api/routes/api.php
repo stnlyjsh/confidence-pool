@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GameController;
+use App\Http\Controllers\PickController;
 use App\Http\Controllers\PoolController;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
@@ -17,6 +18,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('pool', [PoolController::class, 'show']);
     Route::get('weeks/{season}/{week}/games', [GameController::class, 'index'])
+        ->whereNumber(['season', 'week']);
+    Route::get('weeks/{season}/{week}/picks', [PickController::class, 'index'])
+        ->whereNumber(['season', 'week']);
+    Route::put('weeks/{season}/{week}/picks', [PickController::class, 'update'])
         ->whereNumber(['season', 'week']);
 
     Route::middleware('commissioner')->group(function () {
