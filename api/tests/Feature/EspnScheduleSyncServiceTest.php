@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\GameStatus;
 use App\Models\Game;
+use App\Models\Pick;
 use App\Models\Team;
 use App\Services\Espn\EspnScheduleSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -99,5 +100,34 @@ class EspnScheduleSyncServiceTest extends TestCase
         app(EspnScheduleSyncService::class)->sync(2026, 1);
 
         $this->assertDatabaseCount('teams', 4);
+    }
+
+    public function test_sync_scores_picks_for_a_game_that_syncs_in_as_final(): void
+    {
+        $this->fakeEspnResponse();
+
+        // Pre-create the teams with the same espn_team_id the fixture uses
+        // (26 = SEA, 17 = NE) so the sync's team upsert updates these exact
+        // rows in place rather than creating new ones with different ids —
+        // otherwise the game's home_team_id would change out from under
+        // the pick's picked_team_id when the sync runs.
+        $homeTeam = Team::factory()->create(['espn_team_id' => '26']);
+        $awayTeam = Team::factory()->create(['espn_team_id' => '17']);
+
+        // Pre-create the game (unfinished) with a pick, matching the fixture's
+        // final game, so the sync's upsert transitions it to final in place.
+        $game = Game::factory()->create([
+            'espn_event_id' => '401872656',
+            'home_team_id' => $homeTeam->id,
+            'away_team_id' => $awayTeam->id,
+        ]);
+        $pick = Pick::factory()->create(['game_id' => $game->id, 'picked_team_id' => $homeTeam->id, 'confidence_value' => 9]);
+
+        app(EspnScheduleSyncService::class)->sync(2026, 1);
+
+        $pick->refresh();
+        // Fixture has the home team (SEA) winning 13-10.
+        $this->assertTrue($pick->is_correct);
+        $this->assertSame(9, $pick->points_earned);
     }
 }

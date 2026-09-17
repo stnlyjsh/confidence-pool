@@ -33,12 +33,12 @@ class GameFactory extends Factory
         ];
     }
 
-    public function final(int $homeScore = 24, int $awayScore = 17): static
+    public function final(int $home = 24, int $away = 17): static
     {
         return $this->state([
             'status' => GameStatus::Final,
-            'home_score' => $homeScore,
-            'away_score' => $awayScore,
+            'home_score' => $home,
+            'away_score' => $away,
             'kickoff_at' => now()->subDay(),
         ]);
     }

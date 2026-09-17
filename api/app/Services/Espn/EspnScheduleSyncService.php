@@ -5,11 +5,15 @@ namespace App\Services\Espn;
 use App\Enums\GameStatus;
 use App\Models\Game;
 use App\Models\Team;
+use App\Services\ConfidencePoolScorer;
 use Illuminate\Support\Carbon;
 
 class EspnScheduleSyncService
 {
-    public function __construct(private readonly EspnScoreboardClient $client) {}
+    public function __construct(
+        private readonly EspnScoreboardClient $client,
+        private readonly ConfidencePoolScorer $scorer,
+    ) {}
 
     /**
      * Sync the given season/week's schedule and scores, or whatever ESPN
@@ -42,7 +46,13 @@ class EspnScheduleSyncService
         $homeTeam = $this->upsertTeam($home['team']);
         $awayTeam = $this->upsertTeam($away['team']);
 
-        $status = $this->mapStatus($competition['status']['type']);
+        // A commissioner's void is a pool-specific override ESPN knows
+        // nothing about — once set, later syncs must not clobber it back to
+        // whatever ESPN reports.
+        $existing = Game::where('espn_event_id', $event['id'])->first();
+        $status = $existing?->status === GameStatus::Voided
+            ? GameStatus::Voided
+            : $this->mapStatus($competition['status']['type']);
 
         // ESPN reports "0" for both scores before kickoff rather than
         // omitting them, so only trust the score once the game has actually
@@ -50,7 +60,7 @@ class EspnScheduleSyncService
         // from a played one.
         $hasScore = in_array($status, [GameStatus::InProgress, GameStatus::Final], true);
 
-        Game::updateOrCreate(
+        $game = Game::updateOrCreate(
             ['espn_event_id' => $event['id']],
             [
                 'season' => $event['season']['year'],
@@ -64,6 +74,8 @@ class EspnScheduleSyncService
                 'raw_espn_payload' => $event,
             ],
         );
+
+        $this->scorer->scoreGame($game);
     }
 
     /**

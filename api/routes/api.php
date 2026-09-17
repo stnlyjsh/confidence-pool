@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\PickController;
 use App\Http\Controllers\PoolController;
+use App\Http\Controllers\StandingsController;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -24,8 +26,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('weeks/{season}/{week}/picks', [PickController::class, 'update'])
         ->whereNumber(['season', 'week']);
 
+    Route::get('standings/season', [StandingsController::class, 'season']);
+    Route::get('standings/weeks/{week}', [StandingsController::class, 'week'])->whereNumber('week');
+
     Route::middleware('commissioner')->group(function () {
         Route::patch('pool', [PoolController::class, 'update']);
         Route::post('pool/invite/regenerate', [PoolController::class, 'regenerateInvite']);
+        Route::post('admin/games/{game}/void', [AdminController::class, 'voidGame']);
     });
 });
