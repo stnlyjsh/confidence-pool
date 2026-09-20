@@ -10,6 +10,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Models\Pool;
 use App\Models\PoolParticipant;
 use App\Models\User;
+use App\Services\LedgerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -26,11 +27,11 @@ class AuthController extends Controller
      * available before the pool exists — everyone after that joins via
      * invite code (see PoolController::join()).
      */
-    public function register(RegisterRequest $request): JsonResponse
+    public function register(RegisterRequest $request, LedgerService $ledger): JsonResponse
     {
         abort_if(Pool::query()->exists(), 422, 'The pool has already been created. Ask the commissioner for an invite link.');
 
-        $user = DB::transaction(function () use ($request) {
+        $user = DB::transaction(function () use ($request, $ledger) {
             $user = User::create([
                 'name' => $request->string('name'),
                 'email' => $request->string('email'),
@@ -41,6 +42,13 @@ class AuthController extends Controller
                 'name' => $request->string('name')."'s Confidence Pool",
                 'season_year' => now()->year,
                 'commissioner_user_id' => $user->id,
+                // Explicit rather than relying on the migration's DB-level
+                // default — Eloquent doesn't back-fill column defaults into
+                // the in-memory model after insert, so ensureBuyIn() below
+                // would otherwise see null instead of 0.
+                'buy_in_amount_cents' => 0,
+                'weekly_payout_cents' => 0,
+                'season_payout_cents' => 0,
                 'invite_code' => Str::upper(Str::random(8)),
                 'status' => PoolStatus::Draft,
             ]);
@@ -51,6 +59,9 @@ class AuthController extends Controller
                 'role' => ParticipantRole::Commissioner,
                 'joined_at' => now(),
             ]);
+
+            // The commissioner competes and pays in like everyone else.
+            $ledger->ensureBuyIn($pool, $user);
 
             return $user;
         });

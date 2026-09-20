@@ -10,6 +10,7 @@ use App\Http\Resources\PoolResource;
 use App\Models\Pool;
 use App\Models\PoolParticipant;
 use App\Models\User;
+use App\Services\LedgerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -23,11 +24,11 @@ class PoolController extends Controller
      * Create a player account and attach it to the pool matching the given
      * invite code.
      */
-    public function join(JoinPoolRequest $request): JsonResponse
+    public function join(JoinPoolRequest $request, LedgerService $ledger): JsonResponse
     {
         $pool = Pool::where('invite_code', $request->string('invite_code'))->firstOrFail();
 
-        $user = DB::transaction(function () use ($request, $pool) {
+        $user = DB::transaction(function () use ($request, $pool, $ledger) {
             $user = User::create([
                 'name' => $request->string('name'),
                 'email' => $request->string('email'),
@@ -41,6 +42,8 @@ class PoolController extends Controller
                 'joined_at' => now(),
             ]);
 
+            $ledger->ensureBuyIn($pool, $user);
+
             return $user;
         });
 
@@ -52,11 +55,15 @@ class PoolController extends Controller
         return new PoolResource(Pool::sole());
     }
 
-    public function update(UpdatePoolRequest $request): PoolResource
+    public function update(UpdatePoolRequest $request, LedgerService $ledger): PoolResource
     {
         $pool = Pool::sole();
 
         $pool->update($request->validated());
+
+        if ($request->has('buy_in_amount_cents')) {
+            $ledger->syncBuyInsForAllParticipants($pool);
+        }
 
         return new PoolResource($pool);
     }

@@ -38,4 +38,39 @@ class AdminControllerTest extends TestCase
 
         $this->actingAs($player)->postJson("/api/admin/games/{$game->id}/void")->assertForbidden();
     }
+
+    public function test_close_week_is_blocked_until_every_game_is_final(): void
+    {
+        $pool = Pool::factory()->create(['season_year' => 2026]);
+        $commissioner = PoolParticipant::factory()->commissioner()->for($pool)->create()->user;
+        Game::factory()->create(['season' => 2026, 'week' => 1, 'status' => GameStatus::Scheduled]);
+
+        $response = $this->actingAs($commissioner)->postJson('/api/admin/close-week/1');
+
+        $response->assertStatus(422);
+        $this->assertDatabaseCount('ledger_entries', 0);
+    }
+
+    public function test_close_week_succeeds_once_every_game_is_final_or_voided(): void
+    {
+        $pool = Pool::factory()->create(['season_year' => 2026, 'weekly_payout_cents' => 10000]);
+        $winner = PoolParticipant::factory()->for($pool)->create();
+        $commissioner = PoolParticipant::factory()->commissioner()->for($pool)->create()->user;
+        $finalGame = Game::factory()->final()->create(['season' => 2026, 'week' => 1]);
+        Game::factory()->create(['season' => 2026, 'week' => 1, 'status' => GameStatus::Voided]);
+        Pick::factory()->create(['pool_id' => $pool->id, 'user_id' => $winner->user_id, 'game_id' => $finalGame->id, 'season' => 2026, 'week' => 1, 'points_earned' => 10]);
+
+        $response = $this->actingAs($commissioner)->postJson('/api/admin/close-week/1');
+
+        $response->assertOk();
+        $this->assertDatabaseHas('ledger_entries', ['user_id' => $winner->user_id, 'type' => 'weekly_payout']);
+    }
+
+    public function test_player_cannot_close_the_week(): void
+    {
+        $pool = Pool::factory()->create(['season_year' => 2026]);
+        $player = PoolParticipant::factory()->for($pool)->create()->user;
+
+        $this->actingAs($player)->postJson('/api/admin/close-week/1')->assertForbidden();
+    }
 }

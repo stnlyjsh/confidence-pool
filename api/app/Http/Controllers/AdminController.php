@@ -4,8 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Enums\GameStatus;
 use App\Http\Resources\GameResource;
+use App\Http\Resources\LedgerEntryResource;
 use App\Models\Game;
+use App\Models\Pool;
 use App\Services\ConfidencePoolScorer;
+use App\Services\LedgerService;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AdminController extends Controller
 {
@@ -20,5 +24,39 @@ class AdminController extends Controller
         $scorer->scoreGame($game);
 
         return new GameResource($game->load(['homeTeam', 'awayTeam']));
+    }
+
+    /**
+     * Create the weekly payout entries for that week's top scorer(s), once
+     * every game that week has a final result (or has been voided).
+     */
+    public function closeWeek(int $week, LedgerService $ledger): AnonymousResourceCollection
+    {
+        $pool = Pool::sole();
+
+        $unfinished = Game::where('season', $pool->season_year)
+            ->where('week', $week)
+            ->whereNotIn('status', [GameStatus::Final, GameStatus::Voided])
+            ->exists();
+
+        abort_if($unfinished, 422, 'Not every game this week is final yet.');
+
+        return LedgerEntryResource::collection($ledger->closeWeek($pool, $week));
+    }
+
+    /**
+     * Same idea as closeWeek, but for the season champion(s).
+     */
+    public function closeSeason(LedgerService $ledger): AnonymousResourceCollection
+    {
+        $pool = Pool::sole();
+
+        $unfinished = Game::where('season', $pool->season_year)
+            ->whereNotIn('status', [GameStatus::Final, GameStatus::Voided])
+            ->exists();
+
+        abort_if($unfinished, 422, 'Not every game this season is final yet.');
+
+        return LedgerEntryResource::collection($ledger->closeSeason($pool));
     }
 }
