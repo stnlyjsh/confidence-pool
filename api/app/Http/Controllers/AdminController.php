@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\GameStatus;
+use App\Events\GameScoreUpdated;
+use App\Events\StandingsUpdated;
 use App\Http\Resources\GameResource;
 use App\Http\Resources\LedgerEntryResource;
 use App\Models\Game;
@@ -21,7 +23,15 @@ class AdminController extends Controller
     public function voidGame(Game $game, ConfidencePoolScorer $scorer): GameResource
     {
         $game->update(['status' => GameStatus::Voided]);
-        $scorer->scoreGame($game);
+        $updatedPicks = $scorer->scoreGame($game);
+
+        if ($poolId = Pool::query()->value('id')) {
+            GameScoreUpdated::dispatch($poolId, $game->id, $game->home_score, $game->away_score, $game->status->value);
+
+            if ($updatedPicks > 0) {
+                StandingsUpdated::dispatch($poolId, $game->week);
+            }
+        }
 
         return new GameResource($game->load(['homeTeam', 'awayTeam']));
     }

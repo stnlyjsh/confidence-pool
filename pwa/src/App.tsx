@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { BottomNav } from './components/BottomNav'
 import { useAuth } from './context/AuthContext'
+import { useRealtimeUpdates } from './hooks/useRealtimeUpdates'
 import { JoinViaInvitePage } from './pages/JoinViaInvitePage'
 import { LedgerPage } from './pages/LedgerPage'
 import { LoginPage } from './pages/LoginPage'
@@ -13,6 +14,7 @@ import { StandingsPage } from './pages/StandingsPage'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
+  useRealtimeUpdates()
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return (
     <div className="flex min-h-svh flex-1 flex-col">

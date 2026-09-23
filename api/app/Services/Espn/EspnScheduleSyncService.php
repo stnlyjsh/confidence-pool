@@ -3,7 +3,10 @@
 namespace App\Services\Espn;
 
 use App\Enums\GameStatus;
+use App\Events\GameScoreUpdated;
+use App\Events\StandingsUpdated;
 use App\Models\Game;
+use App\Models\Pool;
 use App\Models\Team;
 use App\Services\ConfidencePoolScorer;
 use Illuminate\Support\Carbon;
@@ -24,9 +27,10 @@ class EspnScheduleSyncService
         $payload = $this->client->getScoreboard($season, $week);
 
         $events = $payload['events'] ?? [];
+        $poolId = Pool::query()->value('id');
 
         foreach ($events as $event) {
-            $this->syncEvent($event);
+            $this->syncEvent($event, $poolId);
         }
 
         return count($events);
@@ -35,7 +39,7 @@ class EspnScheduleSyncService
     /**
      * @param  array<string, mixed>  $event
      */
-    private function syncEvent(array $event): void
+    private function syncEvent(array $event, ?int $poolId): void
     {
         $competition = $event['competitions'][0];
         $competitors = collect($competition['competitors']);
@@ -75,7 +79,24 @@ class EspnScheduleSyncService
             ],
         );
 
-        $this->scorer->scoreGame($game);
+        // wasChanged() never populates for a brand-new row inserted via
+        // updateOrCreate (only for updates to an already-existing one), so
+        // a game syncing in for the first time also needs to count as a
+        // change worth broadcasting.
+        $scoreChanged = $game->wasRecentlyCreated || $game->wasChanged(['status', 'home_score', 'away_score']);
+        $updatedPicks = $this->scorer->scoreGame($game);
+
+        if ($poolId === null) {
+            return;
+        }
+
+        if ($scoreChanged) {
+            GameScoreUpdated::dispatch($poolId, $game->id, $game->home_score, $game->away_score, $game->status->value);
+        }
+
+        if ($updatedPicks > 0) {
+            StandingsUpdated::dispatch($poolId, $game->week);
+        }
     }
 
     /**

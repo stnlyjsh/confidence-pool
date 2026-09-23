@@ -3,11 +3,15 @@
 namespace Tests\Feature;
 
 use App\Enums\GameStatus;
+use App\Events\GameScoreUpdated;
+use App\Events\StandingsUpdated;
 use App\Models\Game;
 use App\Models\Pick;
+use App\Models\Pool;
 use App\Models\Team;
 use App\Services\Espn\EspnScheduleSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -129,5 +133,63 @@ class EspnScheduleSyncServiceTest extends TestCase
         // Fixture has the home team (SEA) winning 13-10.
         $this->assertTrue($pick->is_correct);
         $this->assertSame(9, $pick->points_earned);
+    }
+
+    public function test_sync_broadcasts_a_game_score_update_when_a_game_changes(): void
+    {
+        $pool = Pool::factory()->create();
+        Event::fake([GameScoreUpdated::class]);
+        $this->fakeEspnResponse();
+
+        app(EspnScheduleSyncService::class)->sync(2026, 1);
+
+        $final = Game::where('espn_event_id', '401872656')->sole();
+        Event::assertDispatched(GameScoreUpdated::class, fn (GameScoreUpdated $event) => $event->poolId === $pool->id
+            && $event->gameId === $final->id
+            && $event->status === 'final'
+            && $event->homeScore === 13);
+    }
+
+    public function test_sync_does_not_rebroadcast_an_unchanged_game(): void
+    {
+        Pool::factory()->create();
+        $this->fakeEspnResponse();
+        app(EspnScheduleSyncService::class)->sync(2026, 1);
+
+        Event::fake([GameScoreUpdated::class]);
+        app(EspnScheduleSyncService::class)->sync(2026, 1);
+
+        Event::assertNotDispatched(GameScoreUpdated::class);
+    }
+
+    public function test_sync_broadcasts_standings_updated_when_it_scores_a_pick(): void
+    {
+        $pool = Pool::factory()->create();
+        Event::fake([StandingsUpdated::class]);
+        $this->fakeEspnResponse();
+
+        $homeTeam = Team::factory()->create(['espn_team_id' => '26']);
+        $awayTeam = Team::factory()->create(['espn_team_id' => '17']);
+        $game = Game::factory()->create([
+            'espn_event_id' => '401872656',
+            'home_team_id' => $homeTeam->id,
+            'away_team_id' => $awayTeam->id,
+        ]);
+        Pick::factory()->create(['game_id' => $game->id, 'picked_team_id' => $homeTeam->id, 'confidence_value' => 9]);
+
+        app(EspnScheduleSyncService::class)->sync(2026, 1);
+
+        Event::assertDispatched(StandingsUpdated::class, fn (StandingsUpdated $event) => $event->poolId === $pool->id && $event->week === 1);
+    }
+
+    public function test_sync_does_not_broadcast_before_a_pool_exists(): void
+    {
+        Event::fake([GameScoreUpdated::class, StandingsUpdated::class]);
+        $this->fakeEspnResponse();
+
+        app(EspnScheduleSyncService::class)->sync(2026, 1);
+
+        Event::assertNotDispatched(GameScoreUpdated::class);
+        Event::assertNotDispatched(StandingsUpdated::class);
     }
 }
