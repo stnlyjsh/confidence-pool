@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { BottomNav } from './components/BottomNav'
+import { OfflineBanner } from './components/OfflineBanner'
 import { useAuth } from './context/AuthContext'
 import { useRealtimeUpdates } from './hooks/useRealtimeUpdates'
 import { JoinViaInvitePage } from './pages/JoinViaInvitePage'
@@ -26,51 +27,54 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/join/:code?" element={<JoinViaInvitePage />} />
-      <Route
-        path="/picks"
-        element={
-          <RequireAuth>
-            <PicksPage />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/scoreboard"
-        element={
-          <RequireAuth>
-            <ScoreboardPage />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/standings"
-        element={
-          <RequireAuth>
-            <StandingsPage />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/ledger"
-        element={
-          <RequireAuth>
-            <LedgerPage />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <RequireAuth>
-            <PoolSettingsPage />
-          </RequireAuth>
-        }
-      />
-      <Route path="*" element={<Navigate to="/picks" replace />} />
-    </Routes>
+    <>
+      <OfflineBanner />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/join/:code?" element={<JoinViaInvitePage />} />
+        <Route
+          path="/picks"
+          element={
+            <RequireAuth>
+              <PicksPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/scoreboard"
+          element={
+            <RequireAuth>
+              <ScoreboardPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/standings"
+          element={
+            <RequireAuth>
+              <StandingsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/ledger"
+          element={
+            <RequireAuth>
+              <LedgerPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <RequireAuth>
+              <PoolSettingsPage />
+            </RequireAuth>
+          }
+        />
+        <Route path="*" element={<Navigate to="/picks" replace />} />
+      </Routes>
+    </>
   )
 }
