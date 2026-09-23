@@ -33,4 +33,17 @@ class Game extends Model
     {
         return $this->belongsTo(Team::class, 'away_team_id');
     }
+
+    /**
+     * Whether any game is plausibly still being played right now — kicked
+     * off recently but not yet in a terminal state. Used to gate tight
+     * polling: NFL games rarely run past ~5 hours including overtime.
+     */
+    public static function hasLiveGames(): bool
+    {
+        return static::where('kickoff_at', '<=', now())
+            ->where('kickoff_at', '>=', now()->subHours(5))
+            ->whereNotIn('status', [GameStatus::Final, GameStatus::Voided, GameStatus::Canceled])
+            ->exists();
+    }
 }
