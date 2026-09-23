@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Enums\GameStatus;
-use App\Events\GameScoreUpdated;
-use App\Events\StandingsUpdated;
+use App\Http\Requests\OverrideGameRequest;
 use App\Http\Resources\GameResource;
 use App\Http\Resources\LedgerEntryResource;
 use App\Models\Game;
 use App\Models\Pool;
 use App\Services\ConfidencePoolScorer;
+use App\Services\GameUpdateBroadcaster;
 use App\Services\LedgerService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -20,18 +20,39 @@ class AdminController extends Controller
      * resolved) — it's excluded from scoring entirely for every
      * participant, as if it never happened.
      */
-    public function voidGame(Game $game, ConfidencePoolScorer $scorer): GameResource
+    public function voidGame(Game $game, ConfidencePoolScorer $scorer, GameUpdateBroadcaster $broadcaster): GameResource
     {
         $game->update(['status' => GameStatus::Voided]);
+
+        return $this->rescoreAndRespond($game, $scorer, $broadcaster);
+    }
+
+    /**
+     * Manually set a game's result — for when ESPN's unofficial endpoint is
+     * down, wrong, or just slow, so a week doesn't get stuck waiting on it.
+     * Not sticky like a void: a later real ESPN sync is free to correct it.
+     */
+    public function overrideGame(
+        OverrideGameRequest $request,
+        Game $game,
+        ConfidencePoolScorer $scorer,
+        GameUpdateBroadcaster $broadcaster,
+    ): GameResource {
+        $status = GameStatus::from($request->validated('status'));
+
+        $game->update([
+            'status' => $status,
+            'home_score' => $status === GameStatus::Final ? $request->validated('home_score') : null,
+            'away_score' => $status === GameStatus::Final ? $request->validated('away_score') : null,
+        ]);
+
+        return $this->rescoreAndRespond($game, $scorer, $broadcaster);
+    }
+
+    private function rescoreAndRespond(Game $game, ConfidencePoolScorer $scorer, GameUpdateBroadcaster $broadcaster): GameResource
+    {
         $updatedPicks = $scorer->scoreGame($game);
-
-        if ($poolId = Pool::query()->value('id')) {
-            GameScoreUpdated::dispatch($poolId, $game->id, $game->home_score, $game->away_score, $game->status->value);
-
-            if ($updatedPicks > 0) {
-                StandingsUpdated::dispatch($poolId, $game->week);
-            }
-        }
+        $broadcaster->broadcast($game, scoreChanged: true, updatedPicks: $updatedPicks);
 
         return new GameResource($game->load(['homeTeam', 'awayTeam']));
     }

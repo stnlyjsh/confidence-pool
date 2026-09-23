@@ -8,6 +8,8 @@ import {
   useMyLedger,
   type LedgerEntry,
 } from '../hooks/useLedger'
+import { useSeasonStandings } from '../hooks/useStandings'
+import { buildSeasonSummaryCsv, downloadCsv } from '../lib/exportSeasonCsv'
 
 function formatCents(cents: number): string {
   return `$${(Math.abs(cents) / 100).toFixed(2)}`
@@ -82,15 +84,30 @@ function MyLedger() {
 
 function AllLedger() {
   const { data: entries, isLoading } = useAllLedger()
+  const { data: standings } = useSeasonStandings()
   const markPaid = useMarkPaid()
   const closeWeek = useCloseWeek()
   const closeSeason = useCloseSeason()
   const [week, setWeek] = useState(1)
 
+  function exportSeasonSummary() {
+    if (!standings || !entries) return
+    downloadCsv(`season-summary.csv`, buildSeasonSummaryCsv(standings, entries))
+  }
+
   return (
     <div className="space-y-4">
       <div className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-        <h2 className="text-sm font-medium text-slate-500">Close out a period</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-slate-500">Close out a period</h2>
+          <button
+            onClick={exportSeasonSummary}
+            disabled={!standings || !entries}
+            className="text-xs font-medium text-indigo-600 disabled:opacity-40 dark:text-indigo-400"
+          >
+            Export season summary (CSV)
+          </button>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <input
             type="number"

@@ -192,4 +192,20 @@ class EspnScheduleSyncServiceTest extends TestCase
         Event::assertNotDispatched(GameScoreUpdated::class);
         Event::assertNotDispatched(StandingsUpdated::class);
     }
+
+    public function test_sync_completes_even_if_broadcasting_is_unreachable(): void
+    {
+        Pool::factory()->create();
+        $this->fakeEspnResponse();
+
+        // Real dispatch (not Event::fake()) so this exercises the actual
+        // try/catch in GameUpdateBroadcaster, standing in for Reverb being
+        // down mid-sync.
+        Event::listen(GameScoreUpdated::class, fn () => throw new \RuntimeException('Reverb is down'));
+
+        $count = app(EspnScheduleSyncService::class)->sync(2026, 1);
+
+        $this->assertSame(2, $count);
+        $this->assertDatabaseCount('games', 2);
+    }
 }

@@ -3,12 +3,10 @@
 namespace App\Services\Espn;
 
 use App\Enums\GameStatus;
-use App\Events\GameScoreUpdated;
-use App\Events\StandingsUpdated;
 use App\Models\Game;
-use App\Models\Pool;
 use App\Models\Team;
 use App\Services\ConfidencePoolScorer;
+use App\Services\GameUpdateBroadcaster;
 use Illuminate\Support\Carbon;
 
 class EspnScheduleSyncService
@@ -16,6 +14,7 @@ class EspnScheduleSyncService
     public function __construct(
         private readonly EspnScoreboardClient $client,
         private readonly ConfidencePoolScorer $scorer,
+        private readonly GameUpdateBroadcaster $broadcaster,
     ) {}
 
     /**
@@ -27,10 +26,9 @@ class EspnScheduleSyncService
         $payload = $this->client->getScoreboard($season, $week);
 
         $events = $payload['events'] ?? [];
-        $poolId = Pool::query()->value('id');
 
         foreach ($events as $event) {
-            $this->syncEvent($event, $poolId);
+            $this->syncEvent($event);
         }
 
         return count($events);
@@ -39,7 +37,7 @@ class EspnScheduleSyncService
     /**
      * @param  array<string, mixed>  $event
      */
-    private function syncEvent(array $event, ?int $poolId): void
+    private function syncEvent(array $event): void
     {
         $competition = $event['competitions'][0];
         $competitors = collect($competition['competitors']);
@@ -86,17 +84,7 @@ class EspnScheduleSyncService
         $scoreChanged = $game->wasRecentlyCreated || $game->wasChanged(['status', 'home_score', 'away_score']);
         $updatedPicks = $this->scorer->scoreGame($game);
 
-        if ($poolId === null) {
-            return;
-        }
-
-        if ($scoreChanged) {
-            GameScoreUpdated::dispatch($poolId, $game->id, $game->home_score, $game->away_score, $game->status->value);
-        }
-
-        if ($updatedPicks > 0) {
-            StandingsUpdated::dispatch($poolId, $game->week);
-        }
+        $this->broadcaster->broadcast($game, $scoreChanged, $updatedPicks);
     }
 
     /**

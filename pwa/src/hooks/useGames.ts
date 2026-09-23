@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 
 export interface Team {
@@ -25,5 +25,28 @@ export function useGames(season: number, week: number) {
   return useQuery({
     queryKey: ['games', season, week],
     queryFn: () => api.get<{ data: Game[] }>(`/api/weeks/${season}/${week}/games`).then((res) => res.data),
+  })
+}
+
+export interface GameOverride {
+  status: 'final' | 'postponed' | 'canceled'
+  home_score?: number
+  away_score?: number
+}
+
+export function useVoidGame() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (gameId: number) => api.post(`/api/admin/games/${gameId}/void`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['games'] }),
+  })
+}
+
+export function useOverrideGame() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ gameId, ...body }: GameOverride & { gameId: number }) =>
+      api.patch(`/api/admin/games/${gameId}`, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['games'] }),
   })
 }

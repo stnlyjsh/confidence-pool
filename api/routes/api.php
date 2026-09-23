@@ -36,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('pool', [PoolController::class, 'update']);
         Route::post('pool/invite/regenerate', [PoolController::class, 'regenerateInvite']);
         Route::post('admin/games/{game}/void', [AdminController::class, 'voidGame']);
+        Route::patch('admin/games/{game}', [AdminController::class, 'overrideGame']);
         Route::post('admin/close-week/{week}', [AdminController::class, 'closeWeek'])->whereNumber('week');
         Route::post('admin/close-season', [AdminController::class, 'closeSeason']);
         Route::get('ledger/all', [LedgerController::class, 'all']);

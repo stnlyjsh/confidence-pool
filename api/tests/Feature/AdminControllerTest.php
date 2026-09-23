@@ -94,4 +94,101 @@ class AdminControllerTest extends TestCase
 
         $this->actingAs($player)->postJson('/api/admin/close-week/1')->assertForbidden();
     }
+
+    public function test_commissioner_can_manually_finalize_a_game(): void
+    {
+        $pool = Pool::factory()->create();
+        $commissioner = PoolParticipant::factory()->commissioner()->for($pool)->create()->user;
+        $game = Game::factory()->create(['status' => GameStatus::Scheduled]);
+        $pick = Pick::factory()->create(['game_id' => $game->id, 'picked_team_id' => $game->home_team_id, 'confidence_value' => 7]);
+
+        $response = $this->actingAs($commissioner)->patchJson("/api/admin/games/{$game->id}", [
+            'status' => 'final',
+            'home_score' => 24,
+            'away_score' => 17,
+        ]);
+
+        $response->assertOk()->assertJsonPath('data.status', 'final');
+        $game->refresh();
+        $this->assertSame(24, $game->home_score);
+        $this->assertSame(17, $game->away_score);
+        $pick->refresh();
+        $this->assertTrue($pick->is_correct);
+        $this->assertSame(7, $pick->points_earned);
+    }
+
+    public function test_manually_marking_a_game_postponed_clears_any_scores(): void
+    {
+        $pool = Pool::factory()->create();
+        $commissioner = PoolParticipant::factory()->commissioner()->for($pool)->create()->user;
+        $game = Game::factory()->final()->create();
+
+        $response = $this->actingAs($commissioner)->patchJson("/api/admin/games/{$game->id}", [
+            'status' => 'postponed',
+        ]);
+
+        $response->assertOk();
+        $game->refresh();
+        $this->assertSame(GameStatus::Postponed, $game->status);
+        $this->assertNull($game->home_score);
+        $this->assertNull($game->away_score);
+    }
+
+    public function test_override_requires_scores_when_finalizing(): void
+    {
+        $pool = Pool::factory()->create();
+        $commissioner = PoolParticipant::factory()->commissioner()->for($pool)->create()->user;
+        $game = Game::factory()->create();
+
+        $response = $this->actingAs($commissioner)->patchJson("/api/admin/games/{$game->id}", [
+            'status' => 'final',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_override_rejects_voided_as_a_status(): void
+    {
+        $pool = Pool::factory()->create();
+        $commissioner = PoolParticipant::factory()->commissioner()->for($pool)->create()->user;
+        $game = Game::factory()->create();
+
+        $response = $this->actingAs($commissioner)->patchJson("/api/admin/games/{$game->id}", [
+            'status' => 'voided',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_player_cannot_override_a_game(): void
+    {
+        $pool = Pool::factory()->create();
+        $player = PoolParticipant::factory()->for($pool)->create()->user;
+        $game = Game::factory()->create();
+
+        $this->actingAs($player)->patchJson("/api/admin/games/{$game->id}", [
+            'status' => 'final',
+            'home_score' => 10,
+            'away_score' => 7,
+        ])->assertForbidden();
+    }
+
+    public function test_voiding_a_game_succeeds_even_if_broadcasting_is_unreachable(): void
+    {
+        $pool = Pool::factory()->create();
+        $commissioner = PoolParticipant::factory()->commissioner()->for($pool)->create()->user;
+        $game = Game::factory()->final()->create();
+
+        // Real dispatch (not Event::fake()) so this exercises the actual
+        // try/catch in GameUpdateBroadcaster — a listener throwing stands
+        // in for Reverb being unreachable, which is exactly what surfaced
+        // this bug: a broadcast failure was turning a successful void into
+        // a 500 response.
+        Event::listen(GameScoreUpdated::class, fn () => throw new \RuntimeException('Reverb is down'));
+
+        $response = $this->actingAs($commissioner)->postJson("/api/admin/games/{$game->id}/void");
+
+        $response->assertOk();
+        $this->assertSame(GameStatus::Voided, $game->fresh()->status);
+    }
 }
