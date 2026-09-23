@@ -24,6 +24,17 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'commissioner' => EnsureIsCommissioner::class,
         ]);
+
+        // ApplicationBuilder::withMiddleware() always registers a default
+        // redirectGuestsTo(route('login')) before this callback runs. This
+        // app has no such route (pure JSON API), so an unauthenticated
+        // request that doesn't explicitly send Accept: application/json
+        // (e.g. a plain curl, or a browser hitting the URL directly) would
+        // hit RouteNotFoundException instead of a clean 401 — every client
+        // we actually built (the PWA, our tests) always sends that header,
+        // which is exactly why this stayed hidden until a bare curl request
+        // against the deployed app surfaced it.
+        $middleware->redirectGuestsTo(fn () => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

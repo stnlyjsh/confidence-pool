@@ -78,4 +78,17 @@ class AuthTest extends TestCase
 
         $this->assertDatabaseMissing('personal_access_tokens', ['id' => $token->accessToken->id]);
     }
+
+    public function test_an_unauthenticated_request_gets_a_clean_401_even_without_an_accept_header(): void
+    {
+        // Deliberately using get() rather than getJson(): getJson() always
+        // sends Accept: application/json, which masked this bug in every
+        // other test (and in the real PWA, which also always sends that
+        // header) — a plain client hitting the API directly does not, and
+        // used to hit RouteNotFoundException trying to redirect to a
+        // "login" route this pure-API app doesn't have.
+        $response = $this->get('/api/user');
+
+        $response->assertStatus(401);
+    }
 }
