@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { WeekNav } from '../components/WeekNav'
 import { useGames, type Game } from '../hooks/useGames'
 import { usePicks, useSavePicks, type Pick } from '../hooks/usePicks'
-import { defaultSeasonYear } from '../lib/nflSeason'
+import { useWeekSelection } from '../hooks/useWeekSelection'
 
 // Mirrors the server's PickValidationService: the remaining values in
 // 1..N (minus whatever locked picks already claimed) reflow across the
@@ -128,8 +128,7 @@ function LockedRow({ game, pick }: { game: Game; pick: Pick | undefined }) {
 }
 
 export function PicksPage() {
-  const [season] = useState(defaultSeasonYear())
-  const [week, setWeek] = useState(1)
+  const { season, week, setWeek, isLoadingCurrentWeek } = useWeekSelection()
   const { data: games, isLoading: gamesLoading } = useGames(season, week)
   const { data: picks, isLoading: picksLoading } = usePicks(season, week)
   const savePicks = useSavePicks(season, week)
@@ -148,7 +147,7 @@ export function PicksPage() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
 
-  if (gamesLoading || picksLoading || !games || !picks) {
+  if (isLoadingCurrentWeek || gamesLoading || picksLoading || !games || !picks) {
     return (
       <div className="flex-1 px-4 py-6">
         <h1 className="text-xl font-semibold">This week's picks</h1>

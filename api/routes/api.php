@@ -20,6 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
 
     Route::get('pool', [PoolController::class, 'show']);
+    Route::get('weeks/current', [GameController::class, 'currentWeek']);
     Route::get('weeks/{season}/{week}/games', [GameController::class, 'index'])
         ->whereNumber(['season', 'week']);
     Route::get('weeks/{season}/{week}/picks', [PickController::class, 'index'])

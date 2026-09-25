@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { WeekNav } from '../components/WeekNav'
 import { useSeasonStandings, useWeekStandings, type StandingsRow } from '../hooks/useStandings'
-import { defaultSeasonYear } from '../lib/nflSeason'
+import { useWeekSelection } from '../hooks/useWeekSelection'
 
 function StandingsTable({ rows }: { rows: StandingsRow[] }) {
   if (rows.length === 0) {
@@ -31,8 +31,7 @@ function StandingsTable({ rows }: { rows: StandingsRow[] }) {
 
 export function StandingsPage() {
   const [scope, setScope] = useState<'season' | 'week'>('season')
-  const [season] = useState(defaultSeasonYear())
-  const [week, setWeek] = useState(1)
+  const { season, week, setWeek, isLoadingCurrentWeek } = useWeekSelection()
 
   const seasonStandings = useSeasonStandings()
   const weekStandings = useWeekStandings(week)
@@ -65,7 +64,7 @@ export function StandingsPage() {
         </div>
       )}
 
-      {active.isLoading && <p className="text-sm text-slate-500">Loading…</p>}
+      {(isLoadingCurrentWeek || active.isLoading) && <p className="text-sm text-slate-500">Loading…</p>}
       {active.isError && <p className="text-sm text-red-600 dark:text-red-400">Couldn't load standings.</p>}
       {active.data && <StandingsTable rows={active.data} />}
     </div>

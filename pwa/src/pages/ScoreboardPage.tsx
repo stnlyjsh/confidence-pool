@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { WeekNav } from '../components/WeekNav'
 import { useAuth } from '../context/AuthContext'
 import { useGames, useOverrideGame, useVoidGame, type Game } from '../hooks/useGames'
-import { defaultSeasonYear } from '../lib/nflSeason'
+import { useWeekSelection } from '../hooks/useWeekSelection'
 
 function statusLabel(game: Game): string {
   switch (game.status) {
@@ -134,8 +134,7 @@ function GameRow({ game, isCommissioner }: { game: Game; isCommissioner: boolean
 
 export function ScoreboardPage() {
   const { user } = useAuth()
-  const [season] = useState(defaultSeasonYear())
-  const [week, setWeek] = useState(1)
+  const { season, week, setWeek, isLoadingCurrentWeek } = useWeekSelection()
   const { data: games, isLoading, isError } = useGames(season, week)
 
   return (
@@ -145,7 +144,7 @@ export function ScoreboardPage() {
         <WeekNav season={season} week={week} onChangeWeek={setWeek} />
       </div>
 
-      {isLoading && <p className="text-sm text-slate-500">Loading…</p>}
+      {(isLoadingCurrentWeek || isLoading) && <p className="text-sm text-slate-500">Loading…</p>}
       {isError && <p className="text-sm text-red-600 dark:text-red-400">Couldn't load games.</p>}
       {games && games.length === 0 && (
         <p className="text-sm text-slate-500">No games synced for this week yet.</p>

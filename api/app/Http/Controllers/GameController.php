@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\GameResource;
 use App\Models\Game;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class GameController extends Controller
@@ -17,5 +18,14 @@ class GameController extends Controller
             ->get();
 
         return GameResource::collection($games);
+    }
+
+    public function currentWeek(): JsonResponse
+    {
+        $current = Game::currentWeek();
+
+        abort_if($current === null, 404, 'No games synced yet.');
+
+        return response()->json(['data' => $current]);
     }
 }
