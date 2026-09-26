@@ -24,8 +24,8 @@ class GithubIssueReporter
 
         $body = $feedback->message;
 
-        if ($feedback->screenshot_url) {
-            $body .= "\n\n![screenshot]({$feedback->screenshot_url})";
+        foreach ($feedback->screenshot_urls ?? [] as $url) {
+            $body .= "\n\n![screenshot]({$url})";
         }
 
         $body .= "\n\n---\nSubmitted by {$feedback->user->name} via the app.";

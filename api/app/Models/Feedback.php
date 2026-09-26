@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['user_id', 'type', 'message', 'screenshot_url', 'github_issue_url', 'github_issue_number'])]
+#[Fillable(['user_id', 'type', 'message', 'screenshot_urls', 'github_issue_url', 'github_issue_number'])]
 class Feedback extends Model
 {
     /** @use HasFactory<FeedbackFactory> */
@@ -19,6 +19,7 @@ class Feedback extends Model
     {
         return [
             'type' => FeedbackType::class,
+            'screenshot_urls' => 'array',
         ];
     }
 

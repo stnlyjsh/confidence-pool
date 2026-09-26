@@ -10,6 +10,8 @@ const feedbackTypeLabels: Record<FeedbackType, string> = {
   idea: 'Improvement',
 }
 
+const MAX_SCREENSHOTS = 5
+
 function centsToDollarsInput(cents: number): string {
   return (cents / 100).toFixed(2)
 }
@@ -35,8 +37,8 @@ export function PoolSettingsPage() {
 
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('bug')
   const [feedbackMessage, setFeedbackMessage] = useState('')
-  const [screenshot, setScreenshot] = useState<File | null>(null)
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
+  const [screenshots, setScreenshots] = useState<File[]>([])
+  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([])
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const submitFeedback = useSubmitFeedback()
 
@@ -89,29 +91,33 @@ export function PoolSettingsPage() {
   }
 
   function handleScreenshotChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null
-    setScreenshot(file)
-    setScreenshotPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev)
-      return file ? URL.createObjectURL(file) : null
-    })
+    const newFiles = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    const combined = [...screenshots, ...newFiles].slice(0, MAX_SCREENSHOTS)
+    screenshotPreviews.forEach((url) => URL.revokeObjectURL(url))
+    setScreenshots(combined)
+    setScreenshotPreviews(combined.map((file) => URL.createObjectURL(file)))
   }
 
-  function clearScreenshot() {
-    setScreenshot(null)
-    setScreenshotPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev)
-      return null
-    })
+  function removeScreenshot(index: number) {
+    URL.revokeObjectURL(screenshotPreviews[index])
+    setScreenshots(screenshots.filter((_, i) => i !== index))
+    setScreenshotPreviews(screenshotPreviews.filter((_, i) => i !== index))
+  }
+
+  function clearScreenshots() {
+    screenshotPreviews.forEach((url) => URL.revokeObjectURL(url))
+    setScreenshots([])
+    setScreenshotPreviews([])
   }
 
   function sendFeedback() {
     submitFeedback.mutate(
-      { type: feedbackType, message: feedbackMessage, screenshot },
+      { type: feedbackType, message: feedbackMessage, screenshots },
       {
         onSuccess: () => {
           setFeedbackMessage('')
-          clearScreenshot()
+          clearScreenshots()
           setToastMessage('Much appreciated! :]')
           setTimeout(() => setToastMessage(null), 2500)
         },
@@ -231,17 +237,35 @@ export function PoolSettingsPage() {
           placeholder="open to ANY input"
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
         />
-        <div className="flex items-center gap-3">
-          <label className="cursor-pointer rounded-lg bg-slate-100 px-3 py-1.5 text-sm dark:bg-slate-800">
-            {screenshot ? 'Change screenshot' : 'Attach screenshot'}
-            <input type="file" accept="image/*" onChange={handleScreenshotChange} className="hidden" />
+        <div className="space-y-2">
+          <label
+            className={`inline-block rounded-lg bg-slate-100 px-3 py-1.5 text-sm dark:bg-slate-800 ${
+              screenshots.length >= MAX_SCREENSHOTS ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+            }`}
+          >
+            Attach screenshots (up to {MAX_SCREENSHOTS})
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={screenshots.length >= MAX_SCREENSHOTS}
+              onChange={handleScreenshotChange}
+              className="hidden"
+            />
           </label>
-          {screenshotPreview && (
-            <div className="flex items-center gap-2">
-              <img src={screenshotPreview} alt="" className="h-10 w-10 rounded object-cover" />
-              <button onClick={clearScreenshot} className="text-xs text-slate-400">
-                ✕
-              </button>
+          {screenshotPreviews.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {screenshotPreviews.map((src, index) => (
+                <div key={src} className="relative">
+                  <img src={src} alt="" className="h-14 w-14 rounded object-cover" />
+                  <button
+                    onClick={() => removeScreenshot(index)}
+                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-xs text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>

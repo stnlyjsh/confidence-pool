@@ -14,17 +14,15 @@ class FeedbackController extends Controller
 {
     public function store(StoreFeedbackRequest $request, GithubIssueReporter $reporter): JsonResponse
     {
-        $screenshotUrl = null;
-
-        if ($request->hasFile('screenshot')) {
-            $path = $request->file('screenshot')->store('feedback-screenshots');
-            $screenshotUrl = Storage::url($path);
-        }
+        $screenshotUrls = collect($request->file('screenshots', []))
+            ->map(fn ($file) => Storage::url($file->store('feedback-screenshots')))
+            ->values()
+            ->all();
 
         $feedback = Feedback::create([
             'user_id' => $request->user()->id,
             ...$request->safe()->only(['type', 'message']),
-            'screenshot_url' => $screenshotUrl,
+            'screenshot_urls' => $screenshotUrls,
         ]);
 
         // The feedback is already saved regardless of what happens next —

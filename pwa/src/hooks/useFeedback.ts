@@ -7,17 +7,17 @@ export interface Feedback {
   id: number
   type: FeedbackType
   message: string
-  screenshot_url: string | null
+  screenshot_urls: string[]
   github_issue_url: string | null
 }
 
 export function useSubmitFeedback() {
   return useMutation({
-    mutationFn: (payload: { type: FeedbackType; message: string; screenshot: File | null }) => {
+    mutationFn: (payload: { type: FeedbackType; message: string; screenshots: File[] }) => {
       const formData = new FormData()
       formData.set('type', payload.type)
       formData.set('message', payload.message)
-      if (payload.screenshot) formData.set('screenshot', payload.screenshot)
+      payload.screenshots.forEach((file) => formData.append('screenshots[]', file))
 
       return api.post<{ data: Feedback }>('/api/feedback', formData).then((res) => res.data)
     },

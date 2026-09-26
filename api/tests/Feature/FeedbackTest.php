@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Feedback;
 use App\Models\PoolParticipant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -86,7 +87,7 @@ class FeedbackTest extends TestCase
         ]);
     }
 
-    public function test_a_screenshot_can_be_attached_and_is_embedded_in_the_issue(): void
+    public function test_multiple_screenshots_can_be_attached_and_are_all_embedded_in_the_issue(): void
     {
         Storage::fake();
         $participant = PoolParticipant::factory()->create();
@@ -98,19 +99,34 @@ class FeedbackTest extends TestCase
         $response = $this->actingAs($participant->user)->post('/api/feedback', [
             'type' => 'bug',
             'message' => 'Look at this',
-            'screenshot' => UploadedFile::fake()->image('bug.png'),
+            'screenshots' => [
+                UploadedFile::fake()->image('bug1.png'),
+                UploadedFile::fake()->image('bug2.png'),
+                UploadedFile::fake()->image('bug3.png'),
+            ],
         ]);
 
         $response->assertCreated();
-        $screenshotUrl = $response->json('data.screenshot_url');
-        $this->assertNotNull($screenshotUrl);
+        $screenshotUrls = $response->json('data.screenshot_urls');
+        $this->assertCount(3, $screenshotUrls);
 
-        $this->assertDatabaseHas('feedback', [
-            'user_id' => $participant->user_id,
-            'screenshot_url' => $screenshotUrl,
-        ]);
+        $feedback = Feedback::query()->where('user_id', $participant->user_id)->sole();
+        $this->assertSame($screenshotUrls, $feedback->screenshot_urls);
 
-        Http::assertSent(fn ($request) => str_contains($request['body'], $screenshotUrl));
+        Http::assertSent(function ($request) use ($screenshotUrls) {
+            return collect($screenshotUrls)->every(fn ($url) => str_contains($request['body'], $url));
+        });
+    }
+
+    public function test_more_than_five_screenshots_is_rejected(): void
+    {
+        $participant = PoolParticipant::factory()->create();
+
+        $this->actingAs($participant->user)->post('/api/feedback', [
+            'type' => 'bug',
+            'message' => 'Look at this',
+            'screenshots' => array_map(fn ($i) => UploadedFile::fake()->image("bug{$i}.png"), range(1, 6)),
+        ])->assertInvalid(['screenshots']);
     }
 
     public function test_a_non_image_screenshot_is_rejected(): void
@@ -120,7 +136,7 @@ class FeedbackTest extends TestCase
         $this->actingAs($participant->user)->post('/api/feedback', [
             'type' => 'bug',
             'message' => 'Look at this',
-            'screenshot' => UploadedFile::fake()->create('notes.txt', 10),
-        ])->assertInvalid(['screenshot']);
+            'screenshots' => [UploadedFile::fake()->create('notes.txt', 10)],
+        ])->assertInvalid(['screenshots.0']);
     }
 }
