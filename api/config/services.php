@@ -44,4 +44,11 @@ return [
         ),
     ],
 
+    'github' => [
+        // Fine-grained personal access token scoped to just this repo's
+        // Issues: write permission. See GithubIssueReporter.
+        'token' => env('GITHUB_TOKEN'),
+        'repo' => env('GITHUB_REPO'),
+    ],
+
 ];

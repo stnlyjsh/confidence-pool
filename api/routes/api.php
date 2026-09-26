@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\GameController;
 use App\Http\Controllers\LedgerController;
 use App\Http\Controllers\PickController;
@@ -36,6 +37,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('standings/weeks/{week}', [StandingsController::class, 'week'])->whereNumber('week');
 
     Route::get('ledger', [LedgerController::class, 'index']);
+
+    Route::post('feedback', [FeedbackController::class, 'store']);
 
     Route::middleware('commissioner')->group(function () {
         Route::patch('pool', [PoolController::class, 'update']);
