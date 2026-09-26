@@ -6,6 +6,7 @@ import { WeekNav } from '../components/WeekNav'
 import { useGames, type Game, type Team } from '../hooks/useGames'
 import { usePicks, useSavePicks, type Pick } from '../hooks/usePicks'
 import { useWeekSelection } from '../hooks/useWeekSelection'
+import { ApiError } from '../lib/api'
 
 // Mirrors the server's PickValidationService: the remaining values in
 // 1..N (minus whatever locked picks already claimed) reflow across the
@@ -172,6 +173,7 @@ export function PicksPage() {
 
   const [order, setOrder] = useState<number[]>([])
   const [selections, setSelections] = useState<Record<number, number>>({})
+  const [justSaved, setJustSaved] = useState(false)
 
   useEffect(() => {
     if (!picks) return
@@ -208,11 +210,13 @@ export function PicksPage() {
       const newIndex = current.indexOf(Number(over.id))
       return arrayMove(current, oldIndex, newIndex)
     })
+    setJustSaved(false)
   }
 
   function pickTeam(gameId: number, teamId: number) {
     setSelections((s) => ({ ...s, [gameId]: teamId }))
     setOrder((current) => (current.includes(gameId) ? current : [...current, gameId]))
+    setJustSaved(false)
   }
 
   function removePick(gameId: number) {
@@ -222,10 +226,19 @@ export function PicksPage() {
       delete next[gameId]
       return next
     })
+    setJustSaved(false)
   }
 
   function save() {
-    savePicks.mutate(order.map((gameId) => ({ game_id: gameId, picked_team_id: selections[gameId] })))
+    savePicks.mutate(
+      order.map((gameId) => ({ game_id: gameId, picked_team_id: selections[gameId] })),
+      {
+        onSuccess: () => {
+          setJustSaved(true)
+          setTimeout(() => setJustSaved(false), 2000)
+        },
+      },
+    )
   }
 
   return (
@@ -289,13 +302,20 @@ export function PicksPage() {
       )}
 
       {order.length > 0 && (
-        <button
-          onClick={save}
-          disabled={savePicks.isPending}
-          className="w-full rounded-lg bg-indigo-600 py-3 text-center text-sm font-medium text-white disabled:opacity-50"
-        >
-          {savePicks.isPending ? 'Saving…' : 'Save picks'}
-        </button>
+        <>
+          <button
+            onClick={save}
+            disabled={savePicks.isPending}
+            className="w-full rounded-lg bg-indigo-600 py-3 text-center text-sm font-medium text-white disabled:opacity-50"
+          >
+            {savePicks.isPending ? 'Saving…' : justSaved ? 'Saved!' : 'Save picks'}
+          </button>
+          {savePicks.isError && (
+            <p className="mt-2 text-center text-sm text-red-600 dark:text-red-400">
+              {savePicks.error instanceof ApiError ? savePicks.error.message : 'Something went wrong'}
+            </p>
+          )}
+        </>
       )}
     </div>
   )
