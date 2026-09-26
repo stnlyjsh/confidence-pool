@@ -22,11 +22,19 @@ class GithubIssueReporter
     {
         $label = $feedback->type === FeedbackType::Bug ? 'bug' : 'enhancement';
 
+        $body = $feedback->message;
+
+        if ($feedback->screenshot_url) {
+            $body .= "\n\n![screenshot]({$feedback->screenshot_url})";
+        }
+
+        $body .= "\n\n---\nSubmitted by {$feedback->user->name} via the app.";
+
         $response = Http::withToken(config('services.github.token'))
             ->acceptJson()
             ->post('https://api.github.com/repos/'.config('services.github.repo').'/issues', [
                 'title' => Str::limit($feedback->message, 60),
-                'body' => "{$feedback->message}\n\n---\nSubmitted by {$feedback->user->name} via the app.",
+                'body' => $body,
                 'labels' => [$label],
             ])
             ->throw()

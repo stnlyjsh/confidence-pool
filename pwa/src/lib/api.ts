@@ -52,7 +52,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 export const api = {
   get: <T>(path: string) => apiFetch<T>(path),
   post: <T>(path: string, body?: unknown) =>
-    apiFetch<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+    apiFetch<T>(path, {
+      method: 'POST',
+      body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    }),
   put: <T>(path: string, body?: unknown) =>
     apiFetch<T>(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
   patch: <T>(path: string, body?: unknown) =>

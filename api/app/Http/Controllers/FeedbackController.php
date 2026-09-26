@@ -7,15 +7,24 @@ use App\Http\Resources\FeedbackResource;
 use App\Models\Feedback;
 use App\Services\Github\GithubIssueReporter;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 class FeedbackController extends Controller
 {
     public function store(StoreFeedbackRequest $request, GithubIssueReporter $reporter): JsonResponse
     {
+        $screenshotUrl = null;
+
+        if ($request->hasFile('screenshot')) {
+            $path = $request->file('screenshot')->store('feedback-screenshots');
+            $screenshotUrl = Storage::url($path);
+        }
+
         $feedback = Feedback::create([
             'user_id' => $request->user()->id,
-            ...$request->validated(),
+            ...$request->safe()->only(['type', 'message']),
+            'screenshot_url' => $screenshotUrl,
         ]);
 
         // The feedback is already saved regardless of what happens next —

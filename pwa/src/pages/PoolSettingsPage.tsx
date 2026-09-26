@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import { Toast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 import { useSubmitFeedback, type FeedbackType } from '../hooks/useFeedback'
@@ -35,6 +35,8 @@ export function PoolSettingsPage() {
 
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('bug')
   const [feedbackMessage, setFeedbackMessage] = useState('')
+  const [screenshot, setScreenshot] = useState<File | null>(null)
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const submitFeedback = useSubmitFeedback()
 
@@ -86,12 +88,30 @@ export function PoolSettingsPage() {
     })
   }
 
+  function handleScreenshotChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    setScreenshot(file)
+    setScreenshotPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return file ? URL.createObjectURL(file) : null
+    })
+  }
+
+  function clearScreenshot() {
+    setScreenshot(null)
+    setScreenshotPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
+  }
+
   function sendFeedback() {
     submitFeedback.mutate(
-      { type: feedbackType, message: feedbackMessage },
+      { type: feedbackType, message: feedbackMessage, screenshot },
       {
         onSuccess: () => {
           setFeedbackMessage('')
+          clearScreenshot()
           setToastMessage('Much appreciated! :]')
           setTimeout(() => setToastMessage(null), 2500)
         },
@@ -208,9 +228,23 @@ export function PoolSettingsPage() {
           value={feedbackMessage}
           onChange={(e) => setFeedbackMessage(e.target.value)}
           rows={3}
-          placeholder={feedbackType === 'bug' ? 'What went wrong?' : 'open to ANY input'}
+          placeholder="open to ANY input"
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
         />
+        <div className="flex items-center gap-3">
+          <label className="cursor-pointer rounded-lg bg-slate-100 px-3 py-1.5 text-sm dark:bg-slate-800">
+            {screenshot ? 'Change screenshot' : 'Attach screenshot'}
+            <input type="file" accept="image/*" onChange={handleScreenshotChange} className="hidden" />
+          </label>
+          {screenshotPreview && (
+            <div className="flex items-center gap-2">
+              <img src={screenshotPreview} alt="" className="h-10 w-10 rounded object-cover" />
+              <button onClick={clearScreenshot} className="text-xs text-slate-400">
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
         {submitFeedback.isError && (
           <p className="text-sm text-red-600 dark:text-red-400">
             {submitFeedback.error instanceof ApiError ? submitFeedback.error.message : 'Something went wrong'}

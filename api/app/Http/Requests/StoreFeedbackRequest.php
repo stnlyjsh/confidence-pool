@@ -27,6 +27,7 @@ class StoreFeedbackRequest extends FormRequest
         return [
             'type' => ['required', Rule::in([FeedbackType::Bug->value, FeedbackType::Idea->value])],
             'message' => ['required', 'string', 'max:2000'],
+            'screenshot' => ['nullable', 'image', 'max:5120'],
         ];
     }
 }

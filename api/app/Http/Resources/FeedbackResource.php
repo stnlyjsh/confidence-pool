@@ -18,6 +18,7 @@ class FeedbackResource extends JsonResource
             'id' => $this->id,
             'type' => $this->type,
             'message' => $this->message,
+            'screenshot_url' => $this->screenshot_url,
             'github_issue_url' => $this->github_issue_url,
         ];
     }

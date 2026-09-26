@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\PoolParticipant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class FeedbackTest extends TestCase
@@ -82,5 +84,43 @@ class FeedbackTest extends TestCase
             'message' => 'Still here even if GitHub is not',
             'github_issue_url' => null,
         ]);
+    }
+
+    public function test_a_screenshot_can_be_attached_and_is_embedded_in_the_issue(): void
+    {
+        Storage::fake();
+        $participant = PoolParticipant::factory()->create();
+
+        Http::fake([
+            'api.github.com/*' => Http::response(['html_url' => 'https://github.com/owner/repo/issues/9', 'number' => 9], 201),
+        ]);
+
+        $response = $this->actingAs($participant->user)->post('/api/feedback', [
+            'type' => 'bug',
+            'message' => 'Look at this',
+            'screenshot' => UploadedFile::fake()->image('bug.png'),
+        ]);
+
+        $response->assertCreated();
+        $screenshotUrl = $response->json('data.screenshot_url');
+        $this->assertNotNull($screenshotUrl);
+
+        $this->assertDatabaseHas('feedback', [
+            'user_id' => $participant->user_id,
+            'screenshot_url' => $screenshotUrl,
+        ]);
+
+        Http::assertSent(fn ($request) => str_contains($request['body'], $screenshotUrl));
+    }
+
+    public function test_a_non_image_screenshot_is_rejected(): void
+    {
+        $participant = PoolParticipant::factory()->create();
+
+        $this->actingAs($participant->user)->post('/api/feedback', [
+            'type' => 'bug',
+            'message' => 'Look at this',
+            'screenshot' => UploadedFile::fake()->create('notes.txt', 10),
+        ])->assertInvalid(['screenshot']);
     }
 }
