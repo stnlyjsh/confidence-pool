@@ -6,6 +6,8 @@ export interface StandingsRow {
   name: string
   total_points: number
   correct_count: number
+  pct_correct: number | null
+  max_potential_points: number
 }
 
 export function useSeasonStandings() {

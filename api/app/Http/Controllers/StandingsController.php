@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\GameStatus;
 use App\Models\Pick;
 use App\Models\Pool;
 use App\Models\PoolParticipant;
@@ -25,7 +26,7 @@ class StandingsController extends Controller
     }
 
     /**
-     * @return Collection<int, array{user_id: int, name: string, total_points: int, correct_count: int}>
+     * @return Collection<int, array{user_id: int, name: string, total_points: int, correct_count: int, pct_correct: float|null, max_potential_points: int}>
      */
     private function standingsFor(Pool $pool, int $season, ?int $week): Collection
     {
@@ -34,17 +35,47 @@ class StandingsController extends Controller
             ->with('user')
             ->get()
             ->map(function (PoolParticipant $participant) use ($season, $week) {
-                $query = Pick::where('user_id', $participant->user_id)->where('season', $season);
+                $query = Pick::where('user_id', $participant->user_id)
+                    ->where('season', $season)
+                    ->with('game:id,status');
 
                 if ($week !== null) {
                     $query->where('week', $week);
                 }
 
+                $totalPoints = 0;
+                $correctCount = 0;
+                $decidedCount = 0;
+                $maxPotentialPoints = 0;
+
+                foreach ($query->get() as $pick) {
+                    if ($pick->is_correct !== null) {
+                        $decidedCount++;
+                        $totalPoints += $pick->points_earned;
+                        $maxPotentialPoints += $pick->points_earned;
+
+                        if ($pick->is_correct) {
+                            $correctCount++;
+                        }
+
+                        continue;
+                    }
+
+                    // Still in play: if a team's been picked and the game
+                    // hasn't been voided, that confidence value is still
+                    // reachable, so it counts toward the ceiling.
+                    if ($pick->picked_team_id !== null && $pick->game->status !== GameStatus::Voided) {
+                        $maxPotentialPoints += $pick->confidence_value;
+                    }
+                }
+
                 return [
                     'user_id' => $participant->user_id,
                     'name' => $participant->user->name,
-                    'total_points' => (int) (clone $query)->sum('points_earned'),
-                    'correct_count' => (clone $query)->where('is_correct', true)->count(),
+                    'total_points' => $totalPoints,
+                    'correct_count' => $correctCount,
+                    'pct_correct' => $decidedCount > 0 ? round($correctCount / $decidedCount * 100, 1) : null,
+                    'max_potential_points' => $maxPotentialPoints,
                 ];
             })
             ->sortByDesc('total_points')

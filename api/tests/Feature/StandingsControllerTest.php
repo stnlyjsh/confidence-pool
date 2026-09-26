@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\GameStatus;
 use App\Models\Game;
 use App\Models\Pick;
 use App\Models\Pool;
@@ -73,5 +74,79 @@ class StandingsControllerTest extends TestCase
         $response->assertOk();
         $data = collect($response->json('data'))->keyBy('user_id');
         $this->assertSame(10, $data[$alice->user_id]['total_points']);
+    }
+
+    public function test_pct_correct_is_null_until_any_pick_is_decided(): void
+    {
+        $pool = Pool::factory()->create(['season_year' => 2026]);
+        $alice = PoolParticipant::factory()->for($pool)->create();
+
+        $game = Game::factory()->create();
+        Pick::factory()->create([
+            'pool_id' => $pool->id, 'user_id' => $alice->user_id, 'game_id' => $game->id,
+            'season' => 2026, 'week' => 1, 'picked_team_id' => $game->home_team_id,
+            'points_earned' => null, 'is_correct' => null,
+        ]);
+
+        $response = $this->actingAs($alice->user)->getJson('/api/standings/season');
+
+        $data = collect($response->json('data'))->keyBy('user_id');
+        $this->assertNull($data[$alice->user_id]['pct_correct']);
+    }
+
+    public function test_pct_correct_only_counts_decided_picks(): void
+    {
+        $pool = Pool::factory()->create(['season_year' => 2026]);
+        $alice = PoolParticipant::factory()->for($pool)->create();
+
+        Pick::factory()->create(['pool_id' => $pool->id, 'user_id' => $alice->user_id, 'season' => 2026, 'week' => 1, 'points_earned' => 10, 'is_correct' => true]);
+        Pick::factory()->create(['pool_id' => $pool->id, 'user_id' => $alice->user_id, 'season' => 2026, 'week' => 2, 'points_earned' => 0, 'is_correct' => false]);
+        // Still undecided — should not count toward the denominator.
+        $game = Game::factory()->create();
+        Pick::factory()->create([
+            'pool_id' => $pool->id, 'user_id' => $alice->user_id, 'game_id' => $game->id,
+            'season' => 2026, 'week' => 3, 'picked_team_id' => $game->home_team_id,
+            'points_earned' => null, 'is_correct' => null,
+        ]);
+
+        $response = $this->actingAs($alice->user)->getJson('/api/standings/season');
+
+        $data = collect($response->json('data'))->keyBy('user_id');
+        $this->assertEquals(50.0, $data[$alice->user_id]['pct_correct']);
+    }
+
+    public function test_max_potential_points_includes_points_still_reachable(): void
+    {
+        $pool = Pool::factory()->create(['season_year' => 2026]);
+        $alice = PoolParticipant::factory()->for($pool)->create();
+
+        // Already decided: locked in at 10.
+        Pick::factory()->create(['pool_id' => $pool->id, 'user_id' => $alice->user_id, 'season' => 2026, 'week' => 1, 'points_earned' => 10, 'is_correct' => true]);
+        // Still in play with a team picked: could still land its confidence value.
+        $inPlay = Game::factory()->create();
+        Pick::factory()->create([
+            'pool_id' => $pool->id, 'user_id' => $alice->user_id, 'game_id' => $inPlay->id,
+            'season' => 2026, 'week' => 2, 'picked_team_id' => $inPlay->home_team_id,
+            'confidence_value' => 7, 'points_earned' => null, 'is_correct' => null,
+        ]);
+        // Locked with no team ever chosen (auto-fill placeholder pre-scoring): can only ever score 0.
+        $noPick = Game::factory()->create();
+        Pick::factory()->create([
+            'pool_id' => $pool->id, 'user_id' => $alice->user_id, 'game_id' => $noPick->id,
+            'season' => 2026, 'week' => 3, 'picked_team_id' => null,
+            'confidence_value' => 16, 'points_earned' => null, 'is_correct' => null, 'is_auto_assigned' => true,
+        ]);
+        // Voided: excluded even though a team was picked.
+        $voided = Game::factory()->create(['status' => GameStatus::Voided]);
+        Pick::factory()->create([
+            'pool_id' => $pool->id, 'user_id' => $alice->user_id, 'game_id' => $voided->id,
+            'season' => 2026, 'week' => 4, 'picked_team_id' => $voided->home_team_id,
+            'confidence_value' => 12, 'points_earned' => null, 'is_correct' => null,
+        ]);
+
+        $response = $this->actingAs($alice->user)->getJson('/api/standings/season');
+
+        $data = collect($response->json('data'))->keyBy('user_id');
+        $this->assertSame(17, $data[$alice->user_id]['max_potential_points']);
     }
 }
