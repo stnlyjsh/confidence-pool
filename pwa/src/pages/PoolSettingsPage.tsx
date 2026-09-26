@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
+import { Toast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 import { useSubmitFeedback, type FeedbackType } from '../hooks/useFeedback'
 import { useUpdatePool, useRegenerateInvite, usePool } from '../hooks/usePool'
 import { ApiError } from '../lib/api'
+
+const feedbackTypeLabels: Record<FeedbackType, string> = {
+  bug: 'Issue',
+  idea: 'Improvement',
+}
 
 function centsToDollarsInput(cents: number): string {
   return (cents / 100).toFixed(2)
@@ -29,7 +35,7 @@ export function PoolSettingsPage() {
 
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('bug')
   const [feedbackMessage, setFeedbackMessage] = useState('')
-  const [feedbackSent, setFeedbackSent] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const submitFeedback = useSubmitFeedback()
 
   useEffect(() => {
@@ -86,7 +92,8 @@ export function PoolSettingsPage() {
       {
         onSuccess: () => {
           setFeedbackMessage('')
-          setFeedbackSent(true)
+          setToastMessage('Much appreciated! :]')
+          setTimeout(() => setToastMessage(null), 2500)
         },
       },
     )
@@ -183,28 +190,25 @@ export function PoolSettingsPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-slate-500">Feedback</h2>
-        <p className="text-xs text-slate-500">Found a bug or have an idea? Let us know.</p>
+        <p className="text-xs text-slate-500">No penny for your thoughts</p>
         <div className="flex gap-2">
           {(['bug', 'idea'] as const).map((type) => (
             <button
               key={type}
               onClick={() => setFeedbackType(type)}
-              className={`rounded-lg px-3 py-1.5 text-sm capitalize ${
+              className={`rounded-lg px-3 py-1.5 text-sm ${
                 feedbackType === type ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-800'
               }`}
             >
-              {type}
+              {feedbackTypeLabels[type]}
             </button>
           ))}
         </div>
         <textarea
           value={feedbackMessage}
-          onChange={(e) => {
-            setFeedbackMessage(e.target.value)
-            setFeedbackSent(false)
-          }}
+          onChange={(e) => setFeedbackMessage(e.target.value)}
           rows={3}
-          placeholder={feedbackType === 'bug' ? 'What went wrong?' : 'What would make this better?'}
+          placeholder={feedbackType === 'bug' ? 'What went wrong?' : 'open to ANY input'}
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
         />
         {submitFeedback.isError && (
@@ -212,19 +216,20 @@ export function PoolSettingsPage() {
             {submitFeedback.error instanceof ApiError ? submitFeedback.error.message : 'Something went wrong'}
           </p>
         )}
-        {feedbackSent && <p className="text-sm text-green-600 dark:text-green-400">Thanks — feedback sent!</p>}
         <button
           onClick={sendFeedback}
           disabled={submitFeedback.isPending || feedbackMessage.trim() === ''}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          {submitFeedback.isPending ? 'Sending…' : 'Send feedback'}
+          {submitFeedback.isPending ? 'Sending…' : 'Send'}
         </button>
       </section>
 
       <button onClick={logout} className="text-sm text-red-600 dark:text-red-400">
         Log out
       </button>
+
+      <Toast message={toastMessage} />
     </div>
   )
 }
