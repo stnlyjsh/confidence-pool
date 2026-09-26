@@ -17,10 +17,13 @@ class TeamFactory extends Factory
      */
     public function definition(): array
     {
+        $city = $this->faker->city();
+
         return [
             'espn_team_id' => (string) $this->faker->unique()->numberBetween(1, 34),
             'abbreviation' => strtoupper($this->faker->unique()->lexify('???')),
-            'name' => $this->faker->city().' '.$this->faker->word(),
+            'name' => $city.' '.$this->faker->word(),
+            'city' => $city,
             'logo_url' => $this->faker->imageUrl(),
         ];
     }

@@ -72,6 +72,8 @@ class EspnScheduleSyncService
                 'kickoff_at' => Carbon::parse($event['date']),
                 'home_score' => $hasScore ? $this->scoreOf($home) : null,
                 'away_score' => $hasScore ? $this->scoreOf($away) : null,
+                'home_team_record' => $this->recordOf($home),
+                'away_team_record' => $this->recordOf($away),
                 'status' => $status,
                 'raw_espn_payload' => $event,
             ],
@@ -97,6 +99,7 @@ class EspnScheduleSyncService
             [
                 'abbreviation' => $team['abbreviation'],
                 'name' => $team['displayName'],
+                'city' => $team['location'] ?? null,
                 'logo_url' => $team['logo'] ?? null,
             ],
         );
@@ -108,6 +111,19 @@ class EspnScheduleSyncService
     private function scoreOf(array $competitor): ?int
     {
         return is_numeric($competitor['score'] ?? null) ? (int) $competitor['score'] : null;
+    }
+
+    /**
+     * The team's overall win-loss record entering this game (unlike the
+     * score, this is meaningful — and available — before kickoff too).
+     *
+     * @param  array<string, mixed>  $competitor
+     */
+    private function recordOf(array $competitor): ?string
+    {
+        $overall = collect($competitor['records'] ?? [])->firstWhere('type', 'total');
+
+        return $overall['summary'] ?? null;
     }
 
     /**

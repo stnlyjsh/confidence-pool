@@ -18,6 +18,7 @@ class TeamResource extends JsonResource
             'id' => $this->id,
             'abbreviation' => $this->abbreviation,
             'name' => $this->name,
+            'city' => $this->city,
             'logo_url' => $this->logo_url,
         ];
     }

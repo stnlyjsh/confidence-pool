@@ -28,6 +28,8 @@ class GameFactory extends Factory
             'kickoff_at' => now()->addWeek(),
             'home_score' => null,
             'away_score' => null,
+            'home_team_record' => '0-0',
+            'away_team_record' => '0-0',
             'status' => GameStatus::Scheduled,
             'raw_espn_payload' => null,
         ];

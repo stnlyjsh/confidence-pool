@@ -42,12 +42,19 @@ class EspnScheduleSyncServiceTest extends TestCase
         $this->assertSame(GameStatus::Final, $final->status);
         $this->assertSame(13, $final->home_score);
         $this->assertSame(10, $final->away_score);
+        $this->assertSame('1-0', $final->home_team_record);
+        $this->assertSame('0-1', $final->away_team_record);
         $this->assertSame('SEA', $final->homeTeam->abbreviation);
         $this->assertSame('NE', $final->awayTeam->abbreviation);
+        $this->assertSame('Seattle', $final->homeTeam->city);
+        $this->assertSame('New England', $final->awayTeam->city);
 
         $scheduled = Game::where('espn_event_id', '401872925')->sole();
         $this->assertSame(GameStatus::Scheduled, $scheduled->status);
         $this->assertNull($scheduled->home_score);
+        // Unlike the score, the record is meaningful (and available) before
+        // kickoff too, so it's captured regardless of game status.
+        $this->assertSame('0-0', $scheduled->home_team_record);
     }
 
     public function test_sync_is_idempotent_on_re_run(): void

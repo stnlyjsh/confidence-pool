@@ -25,6 +25,8 @@ class GameResource extends JsonResource
             'away_team' => new TeamResource($this->whenLoaded('awayTeam')),
             'home_score' => $this->home_score,
             'away_score' => $this->away_score,
+            'home_team_record' => $this->home_team_record,
+            'away_team_record' => $this->away_team_record,
         ];
     }
 }

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['espn_event_id', 'season', 'week', 'home_team_id', 'away_team_id', 'kickoff_at', 'home_score', 'away_score', 'status', 'raw_espn_payload'])]
+#[Fillable(['espn_event_id', 'season', 'week', 'home_team_id', 'away_team_id', 'kickoff_at', 'home_score', 'away_score', 'home_team_record', 'away_team_record', 'status', 'raw_espn_payload'])]
 class Game extends Model
 {
     /** @use HasFactory<GameFactory> */

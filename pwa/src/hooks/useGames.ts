@@ -5,6 +5,7 @@ export interface Team {
   id: number
   abbreviation: string
   name: string
+  city: string | null
   logo_url: string | null
 }
 
@@ -19,6 +20,8 @@ export interface Game {
   away_team: Team
   home_score: number | null
   away_score: number | null
+  home_team_record: string | null
+  away_team_record: string | null
 }
 
 export function useGames(season: number, week: number) {
