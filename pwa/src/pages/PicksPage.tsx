@@ -2,7 +2,6 @@ import { closestCenter, DndContext, PointerSensor, useSensor, useSensors, type D
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useEffect, useState } from 'react'
-import { Announcements } from '../components/Announcements'
 import { WeekNav } from '../components/WeekNav'
 import { useGames, type Game, type Team } from '../hooks/useGames'
 import { usePicks, useSavePicks, type Pick } from '../hooks/usePicks'
@@ -248,8 +247,6 @@ export function PicksPage() {
         <h1 className="text-xl font-semibold">Picks</h1>
         <WeekNav season={season} week={week} onChangeWeek={setWeek} />
       </div>
-
-      <Announcements />
 
       {games.length === 0 && <p className="text-sm text-slate-500">No games synced for this week yet.</p>}
 

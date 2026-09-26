@@ -1,4 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
+import { Announcements } from '../components/Announcements'
 import { Toast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 import { useSubmitFeedback, type FeedbackType } from '../hooks/useFeedback'
@@ -133,6 +134,8 @@ export function PoolSettingsPage() {
           {pool.season_year} season · {pool.status}
         </p>
       </div>
+
+      <Announcements />
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-slate-500">Your account</h2>
