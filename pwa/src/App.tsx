@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { BottomNav } from './components/BottomNav'
 import { OfflineBanner } from './components/OfflineBanner'
+import { WelcomeModal } from './components/WelcomeModal'
 import { useAuth } from './context/AuthContext'
 import { useRealtimeUpdates } from './hooks/useRealtimeUpdates'
 import { GroupPicksPage } from './pages/GroupPicksPage'
@@ -22,6 +23,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
     <div className="flex min-h-svh flex-1 flex-col">
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col">{children}</div>
       <BottomNav />
+      <WelcomeModal />
     </div>
   )
 }

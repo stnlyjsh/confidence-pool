@@ -234,7 +234,7 @@ export function PoolSettingsPage() {
           value={feedbackMessage}
           onChange={(e) => setFeedbackMessage(e.target.value)}
           rows={3}
-          placeholder="open to ANY input"
+          placeholder={feedbackType === 'bug' ? "What's broken?" : 'What would be cool to have?'}
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800"
         />
         <div className="space-y-2">
