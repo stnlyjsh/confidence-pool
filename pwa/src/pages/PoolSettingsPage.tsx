@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useUpdatePool, useRegenerateInvite, usePool } from '../hooks/usePool'
+import { ApiError } from '../lib/api'
 
 function centsToDollarsInput(cents: number): string {
   return (cents / 100).toFixed(2)
@@ -11,7 +12,7 @@ function dollarsInputToCents(value: string): number {
 }
 
 export function PoolSettingsPage() {
-  const { user, logout } = useAuth()
+  const { user, logout, updateName } = useAuth()
   const { data: pool, isLoading } = usePool()
   const updatePool = useUpdatePool()
   const regenerateInvite = useRegenerateInvite()
@@ -20,11 +21,34 @@ export function PoolSettingsPage() {
   const [buyIn, setBuyIn] = useState('0.00')
   const [copied, setCopied] = useState(false)
 
+  const [displayName, setDisplayName] = useState('')
+  const [savingDisplayName, setSavingDisplayName] = useState(false)
+  const [displayNameError, setDisplayNameError] = useState<string | null>(null)
+  const [displayNameSaved, setDisplayNameSaved] = useState(false)
+
   useEffect(() => {
     if (!pool) return
     setName(pool.name)
     setBuyIn(centsToDollarsInput(pool.buy_in_amount_cents))
   }, [pool])
+
+  useEffect(() => {
+    if (user) setDisplayName(user.name)
+  }, [user])
+
+  async function saveDisplayName() {
+    setDisplayNameError(null)
+    setSavingDisplayName(true)
+    try {
+      await updateName(displayName)
+      setDisplayNameSaved(true)
+      setTimeout(() => setDisplayNameSaved(false), 2000)
+    } catch (err) {
+      setDisplayNameError(err instanceof ApiError ? err.message : 'Something went wrong')
+    } finally {
+      setSavingDisplayName(false)
+    }
+  }
 
   if (isLoading || !pool) {
     return (
@@ -58,6 +82,26 @@ export function PoolSettingsPage() {
           {pool.season_year} season · {pool.status}
         </p>
       </div>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-slate-500">Your account</h2>
+        <label className="block text-sm">
+          Display name
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+          />
+        </label>
+        {displayNameError && <p className="text-sm text-red-600 dark:text-red-400">{displayNameError}</p>}
+        <button
+          onClick={saveDisplayName}
+          disabled={savingDisplayName || displayName === user?.name}
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        >
+          {savingDisplayName ? 'Saving…' : displayNameSaved ? 'Saved!' : 'Save name'}
+        </button>
+      </section>
 
       {inviteLink && (
         <section className="space-y-2">

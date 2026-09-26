@@ -21,6 +21,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
   joinPool: (inviteCode: string, name: string, email: string, password: string) => Promise<void>
+  updateName: (name: string) => Promise<void>
   logout: () => void
 }
 
@@ -68,6 +69,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     handleAuthResponse(res)
   }
 
+  async function updateName(name: string) {
+    const res = await api.patch<{ data: User }>('/api/user', { name })
+    setUser(res.data)
+  }
+
   function logout() {
     api.post('/api/logout').catch(() => {})
     setToken(null)
@@ -84,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         joinPool,
+        updateName,
         logout,
       }}
     >
