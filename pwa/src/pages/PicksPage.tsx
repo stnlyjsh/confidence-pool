@@ -200,42 +200,45 @@ export function PicksPage() {
 
       {games.length === 0 && <p className="text-sm text-slate-500">No games synced for this week yet.</p>}
 
-      {order.length > 0 && (
-        <section className="mb-6">
-          <h2 className="mb-2 text-sm font-medium text-slate-500">Your ranking (most confident first)</h2>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={order} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {order.map((gameId, index) => {
-                  const game = gamesById.get(gameId)
-                  if (!game) return null
-                  return (
-                    <SortableRow
-                      key={gameId}
-                      game={game}
-                      teamId={selections[gameId]}
-                      value={previewValues[index]}
-                      onPickTeam={(teamId) => pickTeam(gameId, teamId)}
-                      onRemove={() => removePick(gameId)}
-                    />
-                  )
-                })}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </section>
-      )}
+      {/* Side by side once there's room for it (md+); stacked on mobile. */}
+      <div className="md:grid md:grid-cols-2 md:items-start md:gap-6">
+        {order.length > 0 && (
+          <section className="mb-6 md:mb-0">
+            <h2 className="mb-2 text-sm font-medium text-slate-500">Your ranking (most confident first)</h2>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={order} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {order.map((gameId, index) => {
+                    const game = gamesById.get(gameId)
+                    if (!game) return null
+                    return (
+                      <SortableRow
+                        key={gameId}
+                        game={game}
+                        teamId={selections[gameId]}
+                        value={previewValues[index]}
+                        onPickTeam={(teamId) => pickTeam(gameId, teamId)}
+                        onRemove={() => removePick(gameId)}
+                      />
+                    )
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </section>
+        )}
 
-      {unpickedGames.length > 0 && (
-        <section className="mb-6">
-          <h2 className="mb-2 text-sm font-medium text-slate-500">Not picked yet</h2>
-          <div className="space-y-2">
-            {unpickedGames.map((game) => (
-              <UnpickedRow key={game.id} game={game} onPick={(teamId) => pickTeam(game.id, teamId)} />
-            ))}
-          </div>
-        </section>
-      )}
+        {unpickedGames.length > 0 && (
+          <section className="mb-6 md:mb-0">
+            <h2 className="mb-2 text-sm font-medium text-slate-500">Not picked yet</h2>
+            <div className="space-y-2">
+              {unpickedGames.map((game) => (
+                <UnpickedRow key={game.id} game={game} onPick={(teamId) => pickTeam(game.id, teamId)} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
 
       {lockedGames.length > 0 && (
         <section className="mb-6">

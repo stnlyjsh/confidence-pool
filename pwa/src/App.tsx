@@ -19,7 +19,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return (
     <div className="flex min-h-svh flex-1 flex-col">
-      <div className="flex flex-1 flex-col">{children}</div>
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col">{children}</div>
       <BottomNav />
     </div>
   )
