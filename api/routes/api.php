@@ -27,6 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber(['season', 'week']);
     Route::put('weeks/{season}/{week}/picks', [PickController::class, 'update'])
         ->whereNumber(['season', 'week']);
+    Route::get('weeks/{season}/{week}/group-picks', [PickController::class, 'group'])
+        ->whereNumber(['season', 'week']);
 
     Route::get('standings/season', [StandingsController::class, 'season']);
     Route::get('standings/weeks/{week}', [StandingsController::class, 'week'])->whereNumber('week');

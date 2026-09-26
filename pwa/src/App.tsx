@@ -4,6 +4,7 @@ import { BottomNav } from './components/BottomNav'
 import { OfflineBanner } from './components/OfflineBanner'
 import { useAuth } from './context/AuthContext'
 import { useRealtimeUpdates } from './hooks/useRealtimeUpdates'
+import { GroupPicksPage } from './pages/GroupPicksPage'
 import { JoinViaInvitePage } from './pages/JoinViaInvitePage'
 import { LedgerPage } from './pages/LedgerPage'
 import { LoginPage } from './pages/LoginPage'
@@ -38,6 +39,14 @@ export function App() {
           element={
             <RequireAuth>
               <PicksPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/group-picks"
+          element={
+            <RequireAuth>
+              <GroupPicksPage />
             </RequireAuth>
           }
         />

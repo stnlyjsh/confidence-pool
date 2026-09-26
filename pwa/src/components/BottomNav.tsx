@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 const tabs = [
   { to: '/picks', label: 'Picks' },
+  { to: '/group-picks', label: 'Group' },
   { to: '/scoreboard', label: 'Scores' },
   { to: '/standings', label: 'Standings' },
   { to: '/ledger', label: 'Ledger' },
