@@ -1,0 +1,66 @@
+name: Update polling windows
+
+# Regenerates api/routes/polling-windows.php from the real upcoming NFL
+# schedule and pushes the change as a normal commit, which triggers Laravel
+# Cloud's usual auto-deploy. This is deliberately done via a real deploy
+# rather than a runtime database read: that's the only way we're confident
+# Laravel Cloud's scheduler actually picks up a changed wake schedule.
+on:
+  schedule:
+    - cron: '0 10 * * 2' # Every Tuesday, 10:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update-polling-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sqlite3, pdo_sqlite
+
+      - name: Install dependencies
+        working-directory: api
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Set up a scratch database
+        working-directory: api
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/database.sqlite
+
+      - name: Migrate
+        working-directory: api
+        run: php artisan migrate --force
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/database.sqlite
+
+      - name: Generate polling windows
+        working-directory: api
+        run: php artisan schedule:generate-polling-windows
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/database.sqlite
+
+      - name: Commit and push if changed
+        working-directory: api
+        run: |
+          if git diff --quiet routes/polling-windows.php; then
+            echo "No changes to polling windows."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add routes/polling-windows.php
+          git commit -m "Update polling windows for upcoming games [automated]"
+          git push

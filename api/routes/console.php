@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Game;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -13,26 +12,34 @@ Artisan::command('inspire', function () {
 // single instance, this stops every replica from polling ESPN/locking picks
 // on the same tick and avoids redundant outbound requests.
 
-// Baseline: catches new games, postponements, and schedule changes even
-// when nothing is currently live.
-Schedule::command('espn:sync')->everyFifteenMinutes()->onOneServer();
-
-// Tight polling only while a game is plausibly in progress, so scores and
-// standings feel live without hammering ESPN's unofficial endpoint the
-// other 22ish hours a day nothing is happening.
+// Laravel Cloud's Scale-to-Zero environment wakes the app for every cron
+// tick that's due, *before* it can evaluate any ->when() gate — that gate
+// only runs once the app is already booted, so it can't stop the wake
+// itself. That means wake frequency has to be controlled by the cron
+// expression itself, not application logic, and anything scheduled at or
+// under our 5-minute sleep timeout is effectively always-on regardless of
+// how little work actually happens once awake.
 //
-// Deliberately not everyMinute(): Laravel Cloud's scheduler wakes the app
-// for every cron tick before it can evaluate the when() gate below (that
-// gate only runs once the app is already booted), so an everyMinute()
-// entry forces a wake every single minute regardless of whether it's
-// actually gated off — which defeats scale-to-zero entirely, 24/7/365,
-// not just during games.
-Schedule::command('espn:sync')->everyFiveMinutes()->when(fn () => Game::hasLiveGames())->onOneServer();
+// So: tight, every-minute polling only runs during windows pinned to the
+// real upcoming schedule (routes/polling-windows.php, regenerated weekly
+// by .github/workflows/update-polling-windows.yml from ESPN's actual
+// kickoff times and committed as a normal deploy — the only way Cloud
+// reliably picks up a changed wake schedule). Being awake for the handful
+// of hours a real game is plausibly live is the cost we want to pay;
+// everywhere else falls through to the hourly baseline below.
+foreach (require __DIR__.'/polling-windows.php' as $cronExpression) {
+    Schedule::command('espn:sync')->cron($cronExpression)->onOneServer();
+    Schedule::command('picks:lock-due-now')->cron($cronExpression)->onOneServer();
+}
 
-// Catches any pick left unmade shortly after its game kicks off. A few
-// minutes of lag before auto-fill is harmless — see the note above on why
-// this isn't everyMinute().
-Schedule::command('picks:lock-due-now')->everyFiveMinutes()->onOneServer();
+// Hourly baseline the rest of the time: catches schedule changes,
+// postponements, and anything the generated windows above miss — a flex
+// scheduling change, or a week whose kickoff times weren't finalized yet
+// (still shown as "TBD" by ESPN) when the windows were last generated.
+// picks:lock-due-now rides along on the same tick for free, since the
+// wake already happens for espn:sync either way.
+Schedule::command('espn:sync')->hourly()->onOneServer();
+Schedule::command('picks:lock-due-now')->hourly()->onOneServer();
 
 // ESPN occasionally corrects a final score after the fact; this catches it
 // without waiting on someone to reopen the app for that week.

@@ -35,19 +35,6 @@ class Game extends Model
     }
 
     /**
-     * Whether any game is plausibly still being played right now — kicked
-     * off recently but not yet in a terminal state. Used to gate tight
-     * polling: NFL games rarely run past ~5 hours including overtime.
-     */
-    public static function hasLiveGames(): bool
-    {
-        return static::where('kickoff_at', '<=', now())
-            ->where('kickoff_at', '>=', now()->subHours(5))
-            ->whereNotIn('status', [GameStatus::Final, GameStatus::Voided, GameStatus::Canceled])
-            ->exists();
-    }
-
-    /**
      * The season/week the app should default to, derived from whatever's
      * already been synced rather than computed from the NFL calendar
      * (bye weeks, playoffs, and a variable season start make that fragile).
