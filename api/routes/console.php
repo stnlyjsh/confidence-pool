@@ -20,11 +20,19 @@ Schedule::command('espn:sync')->everyFifteenMinutes()->onOneServer();
 // Tight polling only while a game is plausibly in progress, so scores and
 // standings feel live without hammering ESPN's unofficial endpoint the
 // other 22ish hours a day nothing is happening.
-Schedule::command('espn:sync')->everyMinute()->when(fn () => Game::hasLiveGames())->onOneServer();
+//
+// Deliberately not everyMinute(): Laravel Cloud's scheduler wakes the app
+// for every cron tick before it can evaluate the when() gate below (that
+// gate only runs once the app is already booted), so an everyMinute()
+// entry forces a wake every single minute regardless of whether it's
+// actually gated off — which defeats scale-to-zero entirely, 24/7/365,
+// not just during games.
+Schedule::command('espn:sync')->everyFiveMinutes()->when(fn () => Game::hasLiveGames())->onOneServer();
 
-// Catches any pick left unmade the moment its game kicks off, independent
-// of whether a score sync happens to run at the same tick.
-Schedule::command('picks:lock-due-now')->everyMinute()->onOneServer();
+// Catches any pick left unmade shortly after its game kicks off. A few
+// minutes of lag before auto-fill is harmless — see the note above on why
+// this isn't everyMinute().
+Schedule::command('picks:lock-due-now')->everyFiveMinutes()->onOneServer();
 
 // ESPN occasionally corrects a final score after the fact; this catches it
 // without waiting on someone to reopen the app for that week.
