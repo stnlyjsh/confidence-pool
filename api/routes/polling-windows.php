@@ -8,7 +8,6 @@
 // window where a game is plausibly live, pinned to the exact calendar date
 // rather than a guessed recurring weekly pattern.
 return [
-    '* 0-5 27 10 *',
     '* 0-5 30 10 *',
     '* 18-23 1 11 *',
     '* 0-6 2 11 *',
